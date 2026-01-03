@@ -19,13 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         
         $middleware->statefulApi();
+        
+        // Disable redirect to login for API requests
+        $middleware->redirectGuestsTo(fn (Request $request) => 
+            $request->expectsJson() ? null : null
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Unauthenticated.'
-                ], 401);
-            }
+            return response()->json([
+                'message' => 'Unauthenticated.'
+            ], 401);
         });
     })->create();
