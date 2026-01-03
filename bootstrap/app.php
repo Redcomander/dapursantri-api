@@ -20,6 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
         
         $middleware->statefulApi();
         
+        // Exclude API routes from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
+        
         // Disable redirect to login for API requests
         $middleware->redirectGuestsTo(fn (Request $request) => 
             $request->expectsJson() ? null : null
@@ -32,3 +37,4 @@ return Application::configure(basePath: dirname(__DIR__))
             ], 401);
         });
     })->create();
+
