@@ -55,6 +55,25 @@ class LaporanController extends Controller
             ->orderBy('date')
             ->get();
 
+        // Top items with average price (this month)
+        $thisMonthPurchases = PembelianBahan::with(['bahanMakanan.satuan'])
+            ->whereBetween('tanggal', [$startOfMonth, $endOfMonth])
+            ->get();
+
+        $topItemsWithAverage = $thisMonthPurchases->groupBy('bahan_makanan_id')->map(function ($items) {
+            $first = $items->first();
+            $totalJumlah = $items->sum('jumlah');
+            $totalHarga = $items->sum('total_harga');
+            return [
+                'bahan_id' => $first->bahan_makanan_id,
+                'bahan' => $first->bahanMakanan->nama,
+                'satuan' => $first->bahanMakanan->satuan->nama,
+                'total_jumlah' => $totalJumlah,
+                'total_harga' => $totalHarga,
+                'rata_rata_harga' => $totalJumlah > 0 ? round($totalHarga / $totalJumlah, 0) : 0,
+            ];
+        })->sortByDesc('total_harga')->take(10)->values();
+
         return response()->json([
             'selected_date' => $targetDate->toDateString(),
             'summary' => [
@@ -64,6 +83,7 @@ class LaporanController extends Controller
             ],
             'recent_purchases' => $recentPurchases,
             'weekly_trend' => $weeklyTrend,
+            'top_items_bulan_ini' => $topItemsWithAverage,
         ]);
     }
 
@@ -85,14 +105,17 @@ class LaporanController extends Controller
 
         $total = $pembelian->sum('total_harga');
 
-        // Group by bahan
+        // Group by bahan with average price
         $perBahan = $pembelian->groupBy('bahan_makanan_id')->map(function ($items) {
             $first = $items->first();
+            $totalJumlah = $items->sum('jumlah');
+            $totalHarga = $items->sum('total_harga');
             return [
                 'bahan' => $first->bahanMakanan->nama,
                 'satuan' => $first->bahanMakanan->satuan->nama,
-                'total_jumlah' => $items->sum('jumlah'),
-                'total_harga' => $items->sum('total_harga'),
+                'total_jumlah' => $totalJumlah,
+                'total_harga' => $totalHarga,
+                'rata_rata_harga' => $totalJumlah > 0 ? round($totalHarga / $totalJumlah, 0) : 0,
             ];
         })->values();
 
@@ -135,14 +158,17 @@ class LaporanController extends Controller
             ->orderBy('date')
             ->get();
 
-        // Group by bahan
+        // Group by bahan with average price
         $perBahan = $pembelian->groupBy('bahan_makanan_id')->map(function ($items) {
             $first = $items->first();
+            $totalJumlah = $items->sum('jumlah');
+            $totalHarga = $items->sum('total_harga');
             return [
                 'bahan' => $first->bahanMakanan->nama,
                 'satuan' => $first->bahanMakanan->satuan->nama,
-                'total_jumlah' => $items->sum('jumlah'),
-                'total_harga' => $items->sum('total_harga'),
+                'total_jumlah' => $totalJumlah,
+                'total_harga' => $totalHarga,
+                'rata_rata_harga' => $totalJumlah > 0 ? round($totalHarga / $totalJumlah, 0) : 0,
             ];
         })->values();
 
@@ -200,14 +226,17 @@ class LaporanController extends Controller
             $weekNum++;
         }
 
-        // Group by bahan
+        // Group by bahan with average price
         $perBahan = $pembelian->groupBy('bahan_makanan_id')->map(function ($items) {
             $first = $items->first();
+            $totalJumlah = $items->sum('jumlah');
+            $totalHarga = $items->sum('total_harga');
             return [
                 'bahan' => $first->bahanMakanan->nama,
                 'satuan' => $first->bahanMakanan->satuan->nama,
-                'total_jumlah' => $items->sum('jumlah'),
-                'total_harga' => $items->sum('total_harga'),
+                'total_jumlah' => $totalJumlah,
+                'total_harga' => $totalHarga,
+                'rata_rata_harga' => $totalJumlah > 0 ? round($totalHarga / $totalJumlah, 0) : 0,
             ];
         })->values();
 
