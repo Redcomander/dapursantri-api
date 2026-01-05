@@ -198,7 +198,7 @@ class SesiPembelianController extends Controller
     public function uploadBukti(Request $request, SesiPembelian $sesiPembelian)
     {
         $request->validate([
-            'file' => 'required|file|mimes:jpg,jpeg,png,gif,pdf,webp', // No size limit
+            'file' => 'required|file|mimes:jpg,jpeg,png,gif,pdf,webp',
         ]);
 
         $file = $request->file('file');
@@ -207,22 +207,28 @@ class SesiPembelianController extends Controller
         
         // Check if file is an image (not PDF)
         if (str_starts_with($mimeType, 'image/')) {
-            // Compress image using Intervention Image
-            $image = \Intervention\Image\Laravel\Facades\Image::read($file);
-            
-            // Resize if larger than 1920px
-            $image->scaleDown(1920, 1920);
-            
-            // Generate unique filename
-            $filename = 'bukti-pembelian/' . uniqid() . '_' . time() . '.jpg';
-            
-            // Encode and save (quality 75%)
-            $encoded = $image->toJpeg(75);
-            Storage::disk('public')->put($filename, $encoded);
-            
-            $path = $filename;
-            $fileSize = Storage::disk('public')->size($path);
-            $mimeType = 'image/jpeg';
+            try {
+                // Compress image using Intervention Image
+                $image = \Intervention\Image\Laravel\Facades\Image::read($file);
+                
+                // Resize if larger than 1920px
+                $image->scaleDown(1920, 1920);
+                
+                // Generate unique filename
+                $filename = 'bukti-pembelian/' . uniqid() . '_' . time() . '.jpg';
+                
+                // Encode and save (quality 75%)
+                $encoded = $image->toJpeg(75);
+                Storage::disk('public')->put($filename, $encoded);
+                
+                $path = $filename;
+                $fileSize = Storage::disk('public')->size($path);
+                $mimeType = 'image/jpeg';
+            } catch (\Exception $e) {
+                // Fallback: store original file if compression fails (e.g., no GD/Imagick)
+                $path = $file->store('bukti-pembelian', 'public');
+                $fileSize = $file->getSize();
+            }
         } else {
             // Store PDF as-is
             $path = $file->store('bukti-pembelian', 'public');
