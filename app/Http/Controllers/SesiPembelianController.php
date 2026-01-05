@@ -44,13 +44,16 @@ class SesiPembelianController extends Controller
     }
 
     /**
-     * Get today's sessions
+     * Get sessions by date (default today Jakarta timezone)
      */
-    public function today()
+    public function today(Request $request)
     {
+        // Use provided date or default to today in Jakarta timezone
+        $date = $request->get('date', now('Asia/Jakarta')->toDateString());
+
         $sessions = SesiPembelian::with(['user:id,name', 'items.bahanMakanan.satuan', 'buktiPembelian'])
             ->withCount('items')
-            ->whereDate('tanggal', now()->toDateString())
+            ->whereDate('tanggal', $date)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -59,6 +62,7 @@ class SesiPembelianController extends Controller
         return response()->json([
             'sessions' => $sessions,
             'total' => $total,
+            'date' => $date,
         ]);
     }
 
@@ -189,23 +193,48 @@ class SesiPembelianController extends Controller
     }
 
     /**
-     * Upload proof document
+     * Upload proof document with auto-compression for images
      */
     public function uploadBukti(Request $request, SesiPembelian $sesiPembelian)
     {
         $request->validate([
-            'file' => 'required|file|mimes:jpg,jpeg,png,gif,pdf|max:5120', // 5MB max
+            'file' => 'required|file|mimes:jpg,jpeg,png,gif,pdf,webp', // No size limit
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('bukti-pembelian', 'public');
+        $mimeType = $file->getMimeType();
+        $originalName = $file->getClientOriginalName();
+        
+        // Check if file is an image (not PDF)
+        if (str_starts_with($mimeType, 'image/')) {
+            // Compress image using Intervention Image
+            $image = \Intervention\Image\Laravel\Facades\Image::read($file);
+            
+            // Resize if larger than 1920px
+            $image->scaleDown(1920, 1920);
+            
+            // Generate unique filename
+            $filename = 'bukti-pembelian/' . uniqid() . '_' . time() . '.jpg';
+            
+            // Encode and save (quality 75%)
+            $encoded = $image->toJpeg(75);
+            Storage::disk('public')->put($filename, $encoded);
+            
+            $path = $filename;
+            $fileSize = Storage::disk('public')->size($path);
+            $mimeType = 'image/jpeg';
+        } else {
+            // Store PDF as-is
+            $path = $file->store('bukti-pembelian', 'public');
+            $fileSize = $file->getSize();
+        }
 
         $bukti = BuktiPembelian::create([
             'sesi_pembelian_id' => $sesiPembelian->id,
             'file_path' => $path,
-            'file_name' => $file->getClientOriginalName(),
-            'file_type' => $file->getMimeType(),
-            'file_size' => $file->getSize(),
+            'file_name' => $originalName,
+            'file_type' => $mimeType,
+            'file_size' => $fileSize,
         ]);
 
         return response()->json([
