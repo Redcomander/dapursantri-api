@@ -44,25 +44,50 @@ class SesiPembelianController extends Controller
     }
 
     /**
-     * Get sessions by date (default today Jakarta timezone)
+     * Get all categories (formerly sessions) with items grouped by bahan and average price
      */
     public function today(Request $request)
     {
-        // Use provided date or default to today in Jakarta timezone
-        $date = $request->get('date', now('Asia/Jakarta')->toDateString());
-
-        $sessions = SesiPembelian::with(['user:id,name', 'items.bahanMakanan.satuan', 'buktiPembelian'])
+        $categories = SesiPembelian::with(['user:id,name', 'items.bahanMakanan.satuan', 'buktiPembelian'])
             ->withCount('items')
-            ->whereDate('tanggal', $date)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $total = $sessions->sum('total');
+        // Calculate average per bahan for each category
+        $categories = $categories->map(function ($category) {
+            $itemsGrouped = $category->items->groupBy('bahan_makanan_id')->map(function ($items) {
+                $first = $items->first();
+                $totalJumlah = $items->sum('jumlah');
+                $totalHarga = $items->sum('total_harga');
+                return [
+                    'bahan_id' => $first->bahan_makanan_id,
+                    'bahan_nama' => $first->bahanMakanan->nama,
+                    'satuan' => $first->bahanMakanan->satuan->nama,
+                    'total_jumlah' => $totalJumlah,
+                    'total_harga' => $totalHarga,
+                    'rata_rata_harga' => $totalJumlah > 0 ? round($totalHarga / $totalJumlah, 0) : 0,
+                    'items' => $items->map(function ($item) {
+                        return [
+                            'id' => $item->id,
+                            'tanggal' => $item->tanggal,
+                            'jumlah' => $item->jumlah,
+                            'harga_satuan' => $item->harga_satuan,
+                            'total_harga' => $item->total_harga,
+                            'catatan' => $item->catatan,
+                        ];
+                    })->values(),
+                ];
+            })->values();
+            
+            $category->items_grouped = $itemsGrouped;
+            return $category;
+        });
+
+        $total = $categories->sum('total');
 
         return response()->json([
-            'sessions' => $sessions,
+            'categories' => $categories,
             'total' => $total,
-            'date' => $date,
         ]);
     }
 
