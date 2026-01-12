@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/sesi-pembelian/{sesiPembelian}', [SesiPembelianController::class, 'update']);
         Route::delete('/sesi-pembelian/{sesiPembelian}', [SesiPembelianController::class, 'destroy']);
         Route::post('/sesi-pembelian/{sesiPembelian}/items', [SesiPembelianController::class, 'addItem']);
+        Route::put('/sesi-pembelian/{sesiPembelian}/items/{item}', [SesiPembelianController::class, 'updateItem']);
         Route::delete('/sesi-pembelian/{sesiPembelian}/items/{item}', [SesiPembelianController::class, 'removeItem']);
         Route::post('/sesi-pembelian/{sesiPembelian}/bukti', [SesiPembelianController::class, 'uploadBukti']);
         Route::delete('/sesi-pembelian/{sesiPembelian}/bukti/{bukti}', [SesiPembelianController::class, 'deleteBukti']);

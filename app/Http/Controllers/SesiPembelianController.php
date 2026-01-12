@@ -165,19 +165,19 @@ class SesiPembelianController extends Controller
     }
 
     /**
-     * Add item to session
+     * Add item to session/category
      */
     public function addItem(Request $request, SesiPembelian $sesiPembelian)
     {
         $validated = $request->validate([
             'bahan_makanan_id' => 'required|exists:bahan_makanan,id',
+            'tanggal' => 'required|date',
             'jumlah' => 'required|numeric|min:0.01',
             'harga_satuan' => 'required|numeric|min:0',
             'catatan' => 'nullable|string|max:500',
         ]);
 
         $validated['sesi_pembelian_id'] = $sesiPembelian->id;
-        $validated['tanggal'] = $sesiPembelian->tanggal;
         $validated['vendor'] = $sesiPembelian->vendor;
         $validated['user_id'] = auth()->id();
 
@@ -213,6 +213,39 @@ class SesiPembelianController extends Controller
 
         return response()->json([
             'message' => 'Item berhasil dihapus',
+            'session_total' => $sesiPembelian->fresh()->total,
+        ]);
+    }
+
+    /**
+     * Update item in session/category
+     */
+    public function updateItem(Request $request, SesiPembelian $sesiPembelian, PembelianBahan $item)
+    {
+        // Verify item belongs to session
+        if ($item->sesi_pembelian_id !== $sesiPembelian->id) {
+            return response()->json([
+                'message' => 'Item tidak ditemukan dalam sesi ini',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'bahan_makanan_id' => 'sometimes|required|exists:bahan_makanan,id',
+            'tanggal' => 'sometimes|required|date',
+            'jumlah' => 'sometimes|required|numeric|min:0.01',
+            'harga_satuan' => 'sometimes|required|numeric|min:0',
+            'catatan' => 'nullable|string|max:500',
+        ]);
+
+        $item->update($validated);
+        $item->load(['bahanMakanan.satuan']);
+
+        // Update session total
+        $sesiPembelian->updateTotal();
+
+        return response()->json([
+            'message' => 'Item berhasil diperbarui',
+            'item' => $item,
             'session_total' => $sesiPembelian->fresh()->total,
         ]);
     }
